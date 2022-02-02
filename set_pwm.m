@@ -18,5 +18,6 @@ bounded_pwm_value = max(min(pwm_value, upper), lower);
 %% Send Command
 % action = % string value of pwm_value
 % use the serialport() command options to change the PWM value to action
-action = serialport(string(bounded_pwm_value));
+action = num2str(bounded_pwm_value, 'P%04d');
+write(device,action,"string");
 end
