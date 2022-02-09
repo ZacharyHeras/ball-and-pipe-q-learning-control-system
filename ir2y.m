@@ -11,7 +11,7 @@ function [y, pipe_percentage] = ir2y(ir)
 % Modified by: YOUR NAME and DATE
 
 %% Parameters
-% ir_bottom =   % IR reading when ball is at bottom of pipe
+ir_bottom =   % IR reading when ball is at bottom of pipe
 % ir_top    =   % "                        " top of pipe
 y_top     = 0.9144; % Ball at top of the pipe [m]
 

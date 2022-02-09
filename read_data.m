@@ -12,7 +12,7 @@ function [distance,pwm,target,deadpan] = read_data(device)
 %  system
 %
 % Created by:  Kyle Naddeo 1/3/2022
-% Modified by: YOUR NAME and DATE
+% Modified by: Ryan Oliver 2/9/2022
 
 %% Ask nicely for data
 % use the serialport() command options to write the correct letter to the
@@ -20,13 +20,12 @@ function [distance,pwm,target,deadpan] = read_data(device)
 write(device, "S", "string");
 %% Read data
 % use the serialport() command options to read the response
-read(device, 20, "string");
+str = read(device, 20, "string");
 %% Translate
 % translate the response to 4 doubles using str2double() and
 % extractBetween() (Hint: the response is in the spec sheet)
-% distance   = str2double(extractBetween(str, startpos, endpos));
-% manual_pwm = 
-% target     = 
-% deadpan    = 
-
+distance   = str2double(extractBetween(str, 2, 5));
+pwm        = str2double(extractBetween(str, 7, 10));
+target     = str2double(extractBetween(str, 12, 15));
+deadpan    = str2double(extractBetween(str, 17, 20));
 end
