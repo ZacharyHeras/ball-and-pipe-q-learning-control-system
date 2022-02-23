@@ -8,13 +8,18 @@ function action = set_pwm(device, pwm_value)
 %  ~ action: the control action to change the PWM
 %
 % Created by:  Kyle Naddeo 1/3/2022
-% Modified by: Ryan Oliver 2/2/2022
+% Modified by: Zachary Heras 2/9/2022
 
 %% Force PWM value to be valid
-lower = 0;
-upper = 4095;
-bounded_pwm_value = max(min(pwm_value, upper), lower);
+% pwm_value = % Bound value to limits 0 to 4095
+    if (pwm_value < 0 || pwm_value > 4095)
+        pwm_value = 0;
+    end
+
 %% Send Command
-action = num2str(bounded_pwm_value, 'P%04d');
-write(device,action,"string");
+% action = % string value of pwm_value
+% use the serialport() command options to change the PWM value to action
+    action = strcat('p', string(pwm_value));
+    device.writeline(action);
+
 end
