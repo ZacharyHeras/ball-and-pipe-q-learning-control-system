@@ -11,6 +11,7 @@ close all; clc; clear device;
 
 %% Connect to device
 device = serialport('COM10', 19200);
+
 %% Parameters
 target      = 0.5;   % Desired height of the ball [m]
 sample_rate = 0.25;  % Amount of time between controll actions [s]
