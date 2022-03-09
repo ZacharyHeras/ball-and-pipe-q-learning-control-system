@@ -65,6 +65,7 @@ while true
         
 end
 
+%% Plot velocities to find max velocity
 n = 1:1:len(velocities);
 
 plot(len(velocities), velocities)

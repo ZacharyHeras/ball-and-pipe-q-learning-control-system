@@ -11,8 +11,8 @@ function action = set_pwm(device, pwm_value)
 % Modified by: Zachary Heras 2/9/2022
 
 %% Force PWM value to be valid
-% pwm_value = % Bound value to limits 0 to 4095
-    if (pwm_value < 0 || pwm_value > 4095)
+% pwm_value = % Bound value to limits 1000 to 4095
+    if (pwm_value < 1000 || pwm_value > 4095)
         pwm_value = 0;
     end
 
