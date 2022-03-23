@@ -14,33 +14,38 @@ device = serialport('COM10', 19200);
 
 %% Parameters
 target      = 0.5;   % Desired height of the ball [m]
-sample_rate = 0.25;  % Amount of time between controll actions [s]
+sample_rate = 0.01;  % Amount of time between controll actions [s]
 
 %% Give an initial burst to lift ball and keep in air
-set_pwm(device, 200); % Bring ball to ground
-pause(5); % Pause for 5 seconds
+set_pwm(device, 0); % Bring ball to ground
+pause(2); % Pause for 5 seconds
 
-%% Initialize variables
-action      = 0; % Same value of last set_pwm   
+%% Initialize variables  
 error       = 0;
 error_sum   = 0;
 previous_y  = 0;
-velocities = [];
+velocities = (0);
+ys         = (0);
+time = 1;
 
-%% Flush the device
-flush(device)
+%% Blast the ball
+
+action = 500;
+set_pwm(device, action); % Implement action
 
 %% Feedback loop
 while true
+    
     %% Read current height
     [distance, pwm, target, deadpan] = read_data(device);
     y = ir2y(distance); % Convert from IR reading to distance from bottom [m]
-    disp(['y: ', num2str(y)])
+    %disp(['y: ', num2str(y)])
     
     %% Calculate current velocity
     velocity = calculate_velocity(previous_y, y, sample_rate);
-    velocities(end+1) = velocity;
-    disp(['velocity: ', num2str(velocity)]);
+    velocities(time) = velocity;
+    ys(time) = y;
+    %disp(['velocity: ', num2str(velocity)]);
     
     %% Set previous_y
     previous_y = y;
@@ -52,20 +57,23 @@ while true
     
     %% Control
     prev_action = action;
-    action = 4000;
-    set_pwm(device, action); % Implement action
+
         
     % Wait for next sample
     pause(sample_rate)
     
     %% End for loop
-    if y > 0.9
+    time = time + 1;
+    if time*sample_rate > 2
         break;
     end
-        
+    set_pwm(device, 2000);
 end
 
-%% Plot velocities to find max velocity
-n = 1:1:len(velocities);
+n = 1:length(velocities);
 
-plot(len(velocities), velocities)
+subplot(2,1,1)
+plot(n, velocities);
+hold off
+subplot(2,1,2)
+plot(n, ys)

@@ -9,6 +9,6 @@ function velocity = calculate_velocity(last_y, current_y, sampling_time)
 % Created by:  Zachary Heras 3/2/2022
 
 %% Calculate and return velocity
-velocity = (current_y - last_y)/sampling_time;
+velocity = (current_y - last_y) / sampling_time;
 
 end
