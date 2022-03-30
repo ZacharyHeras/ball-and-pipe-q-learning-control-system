@@ -1,13 +1,7 @@
 %% Created by Zachary Heras 2/23/2022
-clear, clc;
+clear;
 
-%% Given Variables
-% mass = 0.00270kg
-% volume = 0.000268m^3
-% density = 1.22500kg/m^3
-% g = 9.8
-% velocity_eq = 2.4384m/s
-
+%% Given variables in SI units
 % mass of ping pong ball
 mass = 2.7 * 10^-3;
 
@@ -20,10 +14,22 @@ density = 1.225;
 % acceleration of gravity
 g = 9.8;
 
+% max height of pipe
+max_height = 0.9144;
+
 % wind velocity when ball is in equilibrium
 % this is an approximate value
 % real value changes with height
 velocity_eq = 2.4384;
+
+% sample_rate of controller
+sample_rate = 0.25;
+
+% time that simulation will run for
+simulation_time = 30;
+
+% number of simulation steps
+steps = simulation_time / sample_rate;
 
 %% G1: Wind speed to ball position
 syms s;
@@ -32,22 +38,63 @@ Ys = c2; % Just reassigned for nomenclature
 Vs = sym2poly(s*(s+c2));
 G1 = tf(Ys,Vs);
 
-%% G2: PWM to air speed
+%% G2: PWM to wind speed
 G2 = 6.3787 * 10^-4;
 
-%% G3: PWM to Ball Position
+%% G3: PWM to ball position
 G3 = G2 * G1;
 
+%% State space representation
+G = ss(G3);
 
 %% Checking simulation for accuracy
-t = 0:0.25:3;
-t2 = 0:0.25:6.25;
-u = 4095 * ones(length(t), 1);
-v = 0 * ones(length(t), 1);
-z = vertcat(u, v);
+% initialize state to 0
+previous_state = [0; 0];
 
-length(z)
+% initialize y values to 0
+y_values = zeros(steps, 1);
 
-lsim(G3, z, t2);
+% action values for testing
+actions = (3000 - 2727.0447) .* ones(steps, 1);
+actions(10:end) = (0 - 2727.0447);
 
-ylim([-0.5 6.25])
+%% Simulation
+for i = 1 : 1 : (length(y_values))
+   
+    % new simulation step
+    [y_new, previous_time_samples, previous_states] = ...
+        lsim(G, [actions(i), actions(i)], [0, sample_rate], previous_state);
+    
+    % display simulation step values
+%     disp('y_new: ');
+%     disp(y_new);
+%     
+%     disp('new_state: ');
+%     disp([previous_states(end - 2), previous_states(end)])
+    
+    previous_state = [previous_states(end - 2), previous_states(end)];
+    
+    % add new simulation step to previous states
+    y_values(i) = y_new(end - 1);
+    y_values(i + 1) = y_new(end);
+    
+    % enforce max height
+    if y_new(end - 1) > max_height
+        y_values(i) = max_height;
+    end
+    
+    if y_new(end) > max_height
+        y_values(i + 1) = max_height;
+    end
+    
+    % enforce min height
+    if y_new(end - 1) < 0
+        y_values(i) = 0;
+    end
+    
+    if y_new(end) < 0
+        y_values(i + 1) = 0;
+    end
+end
+
+plot(0:sample_rate:simulation_time, y_values);
