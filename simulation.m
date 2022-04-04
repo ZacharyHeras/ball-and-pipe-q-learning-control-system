@@ -20,7 +20,7 @@ g = 9.8;
 velocity_eq = 2.4384;
 
 % sampling_rate of controller
-sampling_rate = 0.08;
+sampling_rate = 0.4;
 
 % time that simulation will run for in seconds
 episode_length = 30;
@@ -77,22 +77,22 @@ num_os_variables = size(os_space);
 num_os_variables = num_os_variables(1);
 
 % learning rate
-learning_rate = 0.0001;
+learning_rate = 0.01;
 
 % discount rate
-discount_factor = 0.97;
+discount_factor = 0.95;
 
 % number of episodes
 episodes = 25000;
 
 % epsilon values (exploration)
-epsilon = 0.5;
+epsilon = 0.9;
 start_epsilon_decaying = 1;
 end_epsilon_decaying = cast((episodes / 2), 'int16');
 epsilon_decay_value = 5 * epsilon / ...
     cast(end_epsilon_decaying - start_epsilon_decaying, 'double');
 
-% epsilon_decay_value = 0.01;
+% epsilon_decay_value = 1.01;
 
 % goal height to hit
 y_goal = 0.5;
@@ -115,7 +115,7 @@ G = ss(G3);
 
 %% Q-table initilazation
 % low reward value
-low_reward = -2;
+low_reward = -1;
 
 % randomly initialize q table
 q_table = low_reward * rand(length(height_space), ...
@@ -139,61 +139,87 @@ for episode = 1 : 1 : episodes
     % initilize y_previous to 0
     y_previous = 0;
     
-    % initialize y_new to 0
-    y_new = [0; 0];
+    % initialize y_current to 0
+    y_current = [0; 0];
+    
+    % set exploration value for chance to explore
+        explore = rand;
 
     for i = 1 : 1 : (length(y_values))
-
-        % set exploration value for chance to explore
-        explore = rand;
         
         if explore < epsilon
-            action = randi(length(pwm_space));
+            action = randi([7,length(pwm_space)]);
             current_q = ...
                 q_table(discrete_state(1), discrete_state(2), action);
+            color = '-r';
         else
             % choose action with highest reward
             [current_q, action] = ...
                 max(q_table(discrete_state(1), discrete_state(2), :));
+            color = '-g';
         end
         
         % get new simulation step
-        [y_new, previous_time_samples, previous_states] = ...
+        [y_current, previous_time_samples, previous_states] = ...
             lsim(G, [pwm_space(action), pwm_space(action)],...
             [0, sampling_rate], previous_state);
         
         % enforce max height
-        if y_new(end - 1) > max_height
-            y_new(end - 1) = max_height;
+        if y_current(end - 1) > max_height
+            y_current(end - 1) = max_height;
             y_values(i) = max_height;
+            
         end
 
-        if y_new(end) > max_height
-            y_new(end) = max_height;
+        if y_current(end) > max_height
+            y_current(end) = max_height;
             y_values(i + 1) = max_height;
         end
 
         % enforce min height
-        if y_new(end - 1) < min_height
-            y_new(end - 1) = min_height;
+        if y_current(end - 1) < min_height
+            y_current(end - 1) = min_height;
             y_values(i) = min_height;
         end
 
-        if y_new(end) < min_height
-            y_new(end) = min_height;
+        if y_current(end) < min_height
+            y_current(end) = min_height;
             y_values(i + 1) = min_height;
         end
         
+        if y_current == 0 | y_current == max_height
+            velocity_current = 0;
+        else
+            velocity_current = abs(max(calculate_velocity(y_previous,...
+            y_current(end), sampling_rate)));
+        end
+        
         % calculate new discrete step
-        new_discrete_state = get_discrete_state([y_new(end),...
-            max(calculate_velocity(y_previous,...
-            y_new(end), sampling_rate))], os_low, os_win_size);
+        new_discrete_state = get_discrete_state([y_current(end),...
+            velocity_current], os_low, os_win_size);
 
         % update previous y value
-        y_previous = y_new(end);
+        y_previous = y_current(end);
 
-        % set reward as difference between height and target height cubed
-        reward = -1 * abs(y_goal - y_new(end));
+        y_difference = abs(y_goal - y_current(end));
+        
+        % calculate reward
+        height_reward_weight = 7;
+        height_reward = height_reward_weight * y_difference;
+        
+        velocity_reward_weight = 1;
+        velocity_reward = velocity_reward_weight * abs(velocity_current);
+        
+        if abs(y_current - y_goal) < 0.07 & velocity_current < 0.1
+            reward = 100;
+%             disp(['great: ', num2str(action)]);
+        elseif abs(y_current - y_goal) < 0.1 & velocity_current < 0.25;
+            reward = 5;
+%             disp(['good: ', num2str(action)])
+        else
+            reward = -height_reward;
+%             disp(['bad: ', num2str(action)])
+        end
         
         % calculate max future q value
         [max_future_q, ~] = max(q_table(new_discrete_state(1)...
@@ -226,18 +252,18 @@ for episode = 1 : 1 : episodes
         end
 
         % add new simulation step to previous states
-        y_values(i) = y_new(end - 1);
-        y_values(i + 1) = y_new(end);
+        y_values(i) = y_current(end - 1);
+        y_values(i + 1) = y_current(end);
 
         % debugging
 %         disp(['previous_state: ', num2str(previous_state(end - 1)),...
 %             ' ', num2str(previous_state(end))]);
         
 %         disp(['episode ', num2str(episode), ':']);
-%         disp(['y: ', num2str(y_new(end))]);
+%         disp(['y: ', num2str(y_current(end))]);
 
 %         disp(['velocity: ', num2str(max(calculate_velocity(y_previous,...
-%             y_new(end), sampling_rate)))]);
+%             y_current(end), sampling_rate)))]);
 
 %         disp(['action: ', num2str(2727.0477 + pwm_space(action))]);
 %         disp(['action bucket: ', num2str(action)]);
@@ -260,15 +286,17 @@ for episode = 1 : 1 : episodes
         disp(['action: ', num2str(2727.0477 + pwm_space(action))]);
         disp(['reward: ' num2str(reward)]);
         disp(['new_q: ', num2str(new_q)]);
-        disp(['y: ', num2str(y_new(end))]);
+        disp(['y: ', num2str(y_current(end))]);
         disp(['velocity: ', num2str(max(calculate_velocity(y_previous,...
-            y_new(end), sampling_rate)))]);
+            y_current(end), sampling_rate)))]);
         
         fprintf(1, '\n');
     end
     
-    plot(0:sampling_rate:episode_length, y_values);
+    plot(0:sampling_rate:episode_length, y_values, color);
+    ylim([0 1])
     xlabel('Time(s)')
     ylabel('Height(m)')
     title('Height vs. Time')
+    drawnow
 end
