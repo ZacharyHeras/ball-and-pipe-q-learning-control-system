@@ -1,7 +1,7 @@
 %% Created by Zachary Heras 2/23/2022
 clear, clc;
 
-%% Given variables in SI units and hyperparameters
+%% Given variables in SI units
 % mass of ping pong ball
 mass = 2.7 * 10^-3;
 
@@ -22,20 +22,8 @@ velocity_eq = 2.4384;
 % sampling_rate of controller
 sampling_rate = 0.15;
 
-% time that simulation will run for in seconds
-episode_length = 18;
-
-% number of simulation steps
-steps = episode_length / sampling_rate;
-
-% bucket length
-bucket_size = 20;
-
 % max height of pipe
 max_height = 0.9144;
-
-% min height of pipe
-min_height = 0;
 
 % max velocity of ball and pipe system
 max_vel = 1.5;
@@ -48,6 +36,20 @@ max_pwm = 4095 - 2727.0477;
 
 % min pwm of ball and pip system
 min_pwm = 0 - 2727.0477;
+
+%% hyperparameters
+
+% time that simulation will run for in seconds
+episode_length = 18;
+
+% number of simulation steps
+steps = episode_length / sampling_rate;
+
+% bucket length
+bucket_size = 20;
+
+% min height of pipe
+min_height = 0;
 
 % height space / range
 height_space = min_height:...
@@ -76,216 +78,273 @@ os_win_size = (os_high - os_low) ./...
 num_os_variables = size(os_space);
 num_os_variables = num_os_variables(1);
 
+% number of episodes
+episodes = 7000;
+
 % learning rate
 learning_rate = 0.01;
 
 % discount rate
 discount_factor = 0.90;
 
-% number of episodes
-episodes = 25000;
-
-% epsilon values (exploration)
+% epsilon decay function
 epsilon = 0.9;
 start_epsilon_decaying = 1;
 end_epsilon_decaying = cast((episodes / 2), 'int16');
-epsilon_decay_value = 0.1 * epsilon / ...
+epsilon_decay_value = 0.04 * epsilon / ...
     cast(end_epsilon_decaying - start_epsilon_decaying, 'double');
 
-% goal height to hit
-y_goal = 0.5;
 
-%% G1: Wind speed to ball position
+%% Transfer function
+% G1: Wind speed to ball position
 syms s;
 c2 = ((2*g) / velocity_eq) * (mass - density * 0.00026) / (mass);
 Ys = c2; % Just reassigned for nomenclature
 Vs = sym2poly(s*(s+c2));
 G1 = tf(Ys,Vs);
 
-%% G2: PWM to wind speed
+% G2: PWM to wind speed
 G2 = 6.3787 * 10^-4;
 
-%% G3: PWM to ball position
+% G3: PWM to ball position
 G3 = G2 * G1;
 
-%% State space representation
+% State space representation
 G = ss(G3);
 
-%% Q-table initilazation
-% low reward value
-low_reward = -1;
-
-% randomly initialize q table
-q_table = low_reward * rand(length(height_space), ...
-    length(velocity_space), length(pwm_space));
-
-
-%% Simulation
+%% Simulation and Q-learning
 % hold figure so each episode can be plotted together
 % hold on
 
-for episode = 1 : 1 : episodes 
-    % initialize first discrete state as 0 height and 0 velocity
-    discrete_state = get_discrete_state([0, 0], os_low, os_win_size);
+% initialize y goal to 0.1m
+y_goal = 0.1;
 
-    % initialize ss state
-    previous_state = [0; 0];
+% low reward value
+low_reward = -1;
 
-    % initialize y values to 0s
-    y_values = zeros(steps, 1);
+% initialze reward min
+reward_min = [5000 5000 5000 2200 2200 2200];
 
-    % initilize y_previous to 0
-    y_previous = 0;
+while y_goal < max_height
     
-    % initialize y_current to 0
-    y_current = [0; 0];
+    % initialize epsilon
+    epsilon = 0.9;
     
-    % set exploration value for chance to explore
+    % randomly initialize q table
+    q_table = low_reward * zeros(length(height_space), ...
+        length(velocity_space), length(pwm_space));
+    
+    % initialize previous total episode reward
+    total_episode_reward_previous = 0;
+    
+    % initialize indentical q to 0
+    identical_q = 0;
+    
+    for episode = 1 : 1 : episodes 
+        % initialize first discrete state as 0 height and 0 velocity
+        discrete_state = get_discrete_state([0, 0], os_low, os_win_size);
+
+        % initialize ss state
+        previous_state = [0; 0];
+
+        % initialize y values to 0s
+        y_values = zeros(steps, 1);
+
+        % initilize y_previous to 0
+        y_previous = 0;
+
+        % initialize y_current to 0
+        y_current = [0; 0];
+
+        % set exploration value for chance to explore
         explore = rand;
-
-    for i = 1 : 1 : (length(y_values))
-        
-        if explore < epsilon
-            action = randi([7,length(pwm_space)]);
-            current_q = ...
-                q_table(discrete_state(1), discrete_state(2), action);
-            color = '-r';
-        else
-            % choose action with highest reward
-            [current_q, action] = ...
-                max(q_table(discrete_state(1), discrete_state(2), :));
-            color = '-g';
-        end
-        
-        % get new simulation step
-        [y_current, previous_time_samples, previous_states] = ...
-            lsim(G, [pwm_space(action), pwm_space(action)],...
-            [0, sampling_rate], previous_state);
-        
-        % enforce max height
-        if y_current(end - 1) > max_height
-            y_current(end - 1) = max_height;
-            y_values(i) = max_height;
             
+        % episode's total reward
+        total_episode_reward = 0;
+
+        % loop through each time step in each episode
+        for time = 1 : 1 : (length(steps))
+
+            % determine if agent will explore
+            if explore < epsilon
+                action = randi([8,length(pwm_space)]);
+                current_q = ...
+                    q_table(discrete_state(1), discrete_state(2), action);
+                color = '-r';
+            else
+                % choose action with highest reward
+                [current_q, action] = ...
+                    max(q_table(discrete_state(1), discrete_state(2), :));
+                color = '-g';
+            end
+
+            % get new simulation step
+            [y_current, previous_time_samples, previous_states] = ...
+                lsim(G, [pwm_space(action), pwm_space(action)],...
+                [0, sampling_rate], previous_state);
+
+            % enforce max height
+            if y_current(end - 1) > max_height
+                y_current(end - 1) = max_height;
+                y_values(time) = max_height;
+
+            end
+
+            if y_current(end) > max_height
+                y_current(end) = max_height;
+                y_values(time + 1) = max_height;
+            end
+
+            % enforce min height
+            if y_current(end - 1) < min_height
+                y_current(end - 1) = min_height;
+                y_values(time) = min_height;
+            end
+
+            if y_current(end) < min_height
+                y_current(end) = min_height;
+                y_values(time + 1) = min_height;
+            end
+
+            % calculate velocity
+            if y_current == 0 | y_current == max_height %#ok<OR2>
+                velocity_current = 0;
+            else
+                velocity_current = max(calculate_velocity(y_previous,...
+                y_current(end), sampling_rate));
+            end
+
+            % calculate new discrete step
+            new_discrete_state = get_discrete_state([y_current(end),...
+                velocity_current], os_low, os_win_size);
+
+            % update previous y value
+            y_previous = y_current(end);
+
+            y_difference = y_current(end) - y_goal;
+
+            % calculate reward
+            height_reward_weight = 40;
+            height_reward = height_reward_weight * abs(y_difference);
+
+            velocity_reward_weight = 1;
+            velocity_reward = velocity_reward_weight * abs(velocity_current);
+
+            if (y_difference < 0.05 & y_difference > 0) & (velocity_current > -0.26 & velocity_current < 0) %#ok<AND2>
+                reward = 50;
+            elseif (y_difference < 0.05 & y_difference > 0) & (velocity_current < 0.26 & velocity_current > 0) %#ok<AND2>
+                reward = 50;
+            else
+                reward = -height_reward;
+            end
+
+            % episode's total reward
+            total_episode_reward = total_episode_reward + reward;
+            
+            % calculate max future q value
+            [max_future_q, ~] = max(q_table(new_discrete_state(1)...
+                , new_discrete_state(2), :));
+
+            % update q value using the bellman equation
+            new_q = (1 - learning_rate) * current_q...
+                + learning_rate * (reward + discount_factor * max_future_q);
+
+            q_table(discrete_state(1), ...
+                discrete_state(2), action) = new_q;
+
+            % update discrete_state
+            discrete_state = new_discrete_state;
+
+            % extract previous state from previous state vector
+            previous_state = [previous_states(end - 2), previous_states(end)];
+
+            % enforce max height on ss model
+            % 12.6356 is max height on space state model
+
+            if previous_state(end) > 12.6356
+                previous_state(end) = 12.6356;
+            end
+
+            % enforce min height on ss model
+            % 0 is min height on space state model
+            if previous_state(end) < 0
+                previous_state(end) = 0;
+            end
+
+            % add new simulation step to previous states
+            y_values(time) = y_current(end - 1);
+            y_values(time + 1) = y_current(end);
+
+            if end_epsilon_decaying >= episode ...
+                    && episode >= start_epsilon_decaying
+                epsilon =  epsilon - epsilon_decay_value;
+            end
+
         end
 
-        if y_current(end) > max_height
-            y_current(end) = max_height;
-            y_values(i + 1) = max_height;
+        % logging metrics
+        if mod(episode, 30) == 0
+            disp(['episode ', num2str(episode), ':']);
+            disp(['epsilon: ', num2str(epsilon)]);
+            disp(['action: ', num2str(2727.0477 + pwm_space(action))]);
+            disp(['reward: ' num2str(reward)]);
+            disp(['new_q: ', num2str(new_q)]);
+            disp(['y difference: ', num2str(y_difference(end))]);
+            disp(['velocity: ', num2str(max(calculate_velocity(y_previous,...
+                y_current(end), sampling_rate)))]);
+            disp(['total episode reward: ', num2str(total_episode_reward)])
+            fprintf(1, '\n');
+
         end
 
-        % enforce min height
-        if y_current(end - 1) < min_height
-            y_current(end - 1) = min_height;
-            y_values(i) = min_height;
-        end
-
-        if y_current(end) < min_height
-            y_current(end) = min_height;
-            y_values(i + 1) = min_height;
-        end
+        % visualise agent learning
+        plot(0:sampling_rate:episode_length, y_values, color);
+        ylim([0 1])
+        xlabel('Time(s)')
+        ylabel('Height(m)')
+        title('Height vs. Time')
+        drawnow
         
-        if y_current == 0 | y_current == max_height
-            velocity_current = 0;
-        else
-            velocity_current = max(calculate_velocity(y_previous,...
-            y_current(end), sampling_rate));
+        % count identical runs
+        if total_episode_reward == total_episode_reward_previous
+            identical_q = identical_q + 1;
         end
         
-        % calculate new discrete step
-        new_discrete_state = get_discrete_state([y_current(end),...
-            velocity_current], os_low, os_win_size);
-
-        % update previous y value
-        y_previous = y_current(end);
-
-        y_difference = y_current(end) - y_goal;
-        
-        % calculate reward
-        height_reward_weight = 40;
-        height_reward = height_reward_weight * abs(y_difference);
-        
-        velocity_reward_weight = 1;
-        velocity_reward = velocity_reward_weight * abs(velocity_current);
-        
-        if (y_difference < 0.025 & y_difference > 0) & (velocity_current > -0.05 & velocity_current < 0)
-            reward = 50;
-%             disp(['great: ', num2str(action)]);
-        elseif (y_difference < 0.025 & y_difference > -0.05) & (velocity_current < 0.05 & velocity_current > 0)
-            reward = 50;
-%             disp(['good: ', num2str(action)])
-        else
-            reward = -height_reward;
-%             disp(['bad: ', num2str(action)])
+        % end agent of total reward is very high
+        if total_episode_reward > 5000
+            disp(['total episode reward: ', num2str(total_episode_reward)]);
+            fprintf(1, '\n');
+            pause(5);
+            break;
         end
         
-        % calculate max future q value
-        [max_future_q, ~] = max(q_table(new_discrete_state(1)...
-            , new_discrete_state(2), :));
-        
-        % update q value using the bellman equation
-        new_q = (1 - learning_rate) * current_q...
-            + learning_rate * (reward + discount_factor * max_future_q);
-        
-        q_table(discrete_state(1), ...
-            discrete_state(2), action) = new_q;
-        
-        % update discrete_state
-        discrete_state = new_discrete_state;
-
-        % extract previous state from previous state vector
-        previous_state = [previous_states(end - 2), previous_states(end)];
-        
-        % enforce max height on ss model
-        % 12.6356 is max height on space state model
-
-        if previous_state(end) > 12.6356
-            previous_state(end) = 12.6356;
+        % end agent if it gets stuck in loop
+        if identical_q > 10
+            disp(['total episode reward: ', num2str(total_episode_reward)]);
+            fprintf(1, '\n');
+            pause(5);
+            break;
         end
-
-        % enforce min height on ss model
-        % 0 is min height on space state model
-        if previous_state(end) < 0
-            previous_state(end) = 0;
-        end
-
-        % add new simulation step to previous states
-        y_values(i) = y_current(end - 1);
-        y_values(i + 1) = y_current(end);
-
-
-
-    
-
-    if end_epsilon_decaying >= episode ...
-            && episode >= start_epsilon_decaying
-        epsilon =  epsilon - epsilon_decay_value;
+        
+        % add single step reward to total reward 
+        total_episode_reward_previous = total_episode_reward;
+        
     end
     
     
-        
-        
-end
-    
-    % logging metrics
-    if mod(episode, 30) == 0
-        disp(['episode ', num2str(episode), ':']);
-        disp(['epsilon: ', num2str(epsilon)]);
-        disp(['action: ', num2str(2727.0477 + pwm_space(action))]);
-        disp(['reward: ' num2str(reward)]);
-        disp(['new_q: ', num2str(new_q)]);
-        disp(['y_difference: ', num2str(y_difference(end))]);
-        disp(['velocity: ', num2str(max(calculate_velocity(y_previous,...
-            y_current(end), sampling_rate)))]);
+    if total_episode_reward < reward_min
+        disp(['q_table_'  num2str(y_goal*100)  'cm' ' not good enough!']);
+        disp('redo!');
         fprintf(1, '\n');
-        
+        y_goal = y_goal - 0.1;
+    else
+        disp(['q_table_'  num2str(y_goal*100)  'cm ' 'saved!']);
+        disp('moving to next target height!');
+        fprintf(1, '\n');
     end
-
-    plot(0:sampling_rate:episode_length, y_values, color);
-    ylim([0 1])
-    xlabel('Time(s)')
-    ylabel('Height(m)')
-    title('Height vs. Time')
-    drawnow
+    
+ 	save(['q_tables\q_table_'  num2str(y_goal*100)  'cm'], 'q_table');
+    
+    y_goal = y_goal + 0.1;
     
 end
