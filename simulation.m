@@ -20,10 +20,10 @@ g = 9.8;
 velocity_eq = 2.4384;
 
 % sampling_rate of controller
-sampling_rate = 0.4;
+sampling_rate = 0.15;
 
 % time that simulation will run for in seconds
-episode_length = 30;
+episode_length = 18;
 
 % number of simulation steps
 steps = episode_length / sampling_rate;
@@ -80,7 +80,7 @@ num_os_variables = num_os_variables(1);
 learning_rate = 0.01;
 
 % discount rate
-discount_factor = 0.95;
+discount_factor = 0.90;
 
 % number of episodes
 episodes = 25000;
@@ -89,10 +89,8 @@ episodes = 25000;
 epsilon = 0.9;
 start_epsilon_decaying = 1;
 end_epsilon_decaying = cast((episodes / 2), 'int16');
-epsilon_decay_value = 5 * epsilon / ...
+epsilon_decay_value = 0.1 * epsilon / ...
     cast(end_epsilon_decaying - start_epsilon_decaying, 'double');
-
-% epsilon_decay_value = 1.01;
 
 % goal height to hit
 y_goal = 0.5;
@@ -190,8 +188,8 @@ for episode = 1 : 1 : episodes
         if y_current == 0 | y_current == max_height
             velocity_current = 0;
         else
-            velocity_current = abs(max(calculate_velocity(y_previous,...
-            y_current(end), sampling_rate)));
+            velocity_current = max(calculate_velocity(y_previous,...
+            y_current(end), sampling_rate));
         end
         
         % calculate new discrete step
@@ -201,20 +199,20 @@ for episode = 1 : 1 : episodes
         % update previous y value
         y_previous = y_current(end);
 
-        y_difference = abs(y_goal - y_current(end));
+        y_difference = y_current(end) - y_goal;
         
         % calculate reward
-        height_reward_weight = 7;
-        height_reward = height_reward_weight * y_difference;
+        height_reward_weight = 40;
+        height_reward = height_reward_weight * abs(y_difference);
         
         velocity_reward_weight = 1;
         velocity_reward = velocity_reward_weight * abs(velocity_current);
         
-        if abs(y_current - y_goal) < 0.07 & velocity_current < 0.1
-            reward = 100;
+        if (y_difference < 0.025 & y_difference > 0) & (velocity_current > -0.05 & velocity_current < 0)
+            reward = 50;
 %             disp(['great: ', num2str(action)]);
-        elseif abs(y_current - y_goal) < 0.1 & velocity_current < 0.25;
-            reward = 5;
+        elseif (y_difference < 0.025 & y_difference > -0.05) & (velocity_current < 0.05 & velocity_current > 0)
+            reward = 50;
 %             disp(['good: ', num2str(action)])
         else
             reward = -height_reward;
@@ -229,8 +227,8 @@ for episode = 1 : 1 : episodes
         new_q = (1 - learning_rate) * current_q...
             + learning_rate * (reward + discount_factor * max_future_q);
         
-        q_table(new_discrete_state(1), ...
-            new_discrete_state(2), action) = new_q;
+        q_table(discrete_state(1), ...
+            discrete_state(2), action) = new_q;
         
         % update discrete_state
         discrete_state = new_discrete_state;
@@ -255,48 +253,39 @@ for episode = 1 : 1 : episodes
         y_values(i) = y_current(end - 1);
         y_values(i + 1) = y_current(end);
 
-        % debugging
-%         disp(['previous_state: ', num2str(previous_state(end - 1)),...
-%             ' ', num2str(previous_state(end))]);
-        
-%         disp(['episode ', num2str(episode), ':']);
-%         disp(['y: ', num2str(y_current(end))]);
 
-%         disp(['velocity: ', num2str(max(calculate_velocity(y_previous,...
-%             y_current(end), sampling_rate)))]);
 
-%         disp(['action: ', num2str(2727.0477 + pwm_space(action))]);
-%         disp(['action bucket: ', num2str(action)]);
-%         disp(['reward: ' num2str(reward)]);
-%         disp(['new_q: ', num2str(new_q)]);
-%         disp(['epsilon: ', num2str(epsilon)]);
-%         fprintf(1, '\n');
-
-    end
+    
 
     if end_epsilon_decaying >= episode ...
             && episode >= start_epsilon_decaying
         epsilon =  epsilon - epsilon_decay_value;
     end
     
+    
+        
+        
+end
+    
     % logging metrics
-    if mod(episode, 10) == 0
+    if mod(episode, 30) == 0
         disp(['episode ', num2str(episode), ':']);
         disp(['epsilon: ', num2str(epsilon)]);
         disp(['action: ', num2str(2727.0477 + pwm_space(action))]);
         disp(['reward: ' num2str(reward)]);
         disp(['new_q: ', num2str(new_q)]);
-        disp(['y: ', num2str(y_current(end))]);
+        disp(['y_difference: ', num2str(y_difference(end))]);
         disp(['velocity: ', num2str(max(calculate_velocity(y_previous,...
             y_current(end), sampling_rate)))]);
-        
         fprintf(1, '\n');
+        
     end
-    
+
     plot(0:sampling_rate:episode_length, y_values, color);
     ylim([0 1])
     xlabel('Time(s)')
     ylabel('Height(m)')
     title('Height vs. Time')
     drawnow
+    
 end

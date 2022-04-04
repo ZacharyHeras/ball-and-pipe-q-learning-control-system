@@ -13,31 +13,19 @@ close all; clc; clear device; clear;
 device = serialport('COM10', 19200);
 
 %% Parameters
-target      = 0.5;   % Desired height of the ball [m]
-sample_rate = 0.25;  % Amount of time between controll actions [s]
+y_goal      = 0.5;   % Desired height of the ball [m]
+sample_rate = 0.15;  % Amount of time between controll actions [s]
 
-%% Give an initial burst to lift ball and keep in air
-set_pwm(device, 0); % Bring ball to ground
-pause(3); % Pause for 5 seconds
-
-%% Initialize variables  
-error       = 0;
-error_sum   = 0;
-previous_y  = 0;
-velocities = (0);
-ys         = (0);
-time = 1;
-y = 0;
-
-%% Blast the ball
+%% Bring ball to bottom
 action = 0;
+set_pwm(action);
 
 %% Feedback loop
 while true
     
     %% Read current height
     [distance, pwm, target, deadpan] = read_data(device);
-    % Set previous_y
+    % set previous y
     previous_y = y;
     [y, ~] = ir2y(distance); % Convert from IR reading to distance from bottom [m]
     disp(['y: ', num2str(y)])
@@ -48,19 +36,11 @@ while true
         set_pwm(device, action)
     end
     
-%     tic;
     %% Calculate current velocity
     velocity = calculate_velocity(previous_y, y, sample_rate);
-    velocities(time) = velocity;
-    ys(time) = y;
-    %disp(['velocity: ', num2str(velocity)]);
-%     toc
-   
     
-    %% Calculate errors for PID controller
-    error_prev = error;             % D
-    error      = target - y;        % P
-    error_sum  = error + error_sum; % I
+    %% Calculate error
+    y_difference = ;
     
     %% Control
     prev_action = action;
@@ -68,19 +48,4 @@ while true
         
     % Wait for next sample
     pause(sample_rate)
-    
-    %% End for loop
-    time = time + 1;
-    if time*sample_rate > 10
-        break;
-    end
-%     set_pwm(device, 2000);
 end
-
-n = 1:length(velocities);
-
-subplot(2,1,1)
-plot(n, velocities);
-hold off
-subplot(2,1,2)
-plot(n, ys)
