@@ -1,4 +1,7 @@
-%% Created by Zachary Heras 2/23/2022
+% A MATLAB script to train a q table for use as a controller
+% Created by Zachary Heras 2/23/2022
+
+%% Clear workspace nad command window
 clear, clc;
 
 %% Given variables in SI units
@@ -116,14 +119,14 @@ G = ss(G3);
 % hold figure so each episode can be plotted together
 % hold on
 
-% initialize y goal to 0.1m
+% initialize height goal to 0.1m
 y_goal = 0.1;
 
 % low reward value
 low_reward = -1;
 
 % initialze reward min
-reward_min = [5000 5000 5000 2200 2200 2200];
+reward_min = [5000 5000 5000 2200 2200 2200 2200 2200 2000];
 
 while y_goal < max_height
     
@@ -163,7 +166,7 @@ while y_goal < max_height
         total_episode_reward = 0;
 
         % loop through each time step in each episode
-        for time = 1 : 1 : (length(steps))
+        for time = 1 : 1 : (length(y_values))
 
             % determine if agent will explore
             if explore < epsilon
@@ -312,7 +315,8 @@ while y_goal < max_height
         
         % end agent of total reward is very high
         if total_episode_reward > 5000
-            disp(['total episode reward: ', num2str(total_episode_reward)]);
+            disp(['total episode reward: '...
+                , num2str(total_episode_reward)]);
             fprintf(1, '\n');
             pause(5);
             break;
@@ -320,7 +324,8 @@ while y_goal < max_height
         
         % end agent if it gets stuck in loop
         if identical_q > 10
-            disp(['total episode reward: ', num2str(total_episode_reward)]);
+            disp(['total episode reward: '...
+                , num2str(total_episode_reward)]);
             fprintf(1, '\n');
             pause(5);
             break;
@@ -331,8 +336,8 @@ while y_goal < max_height
         
     end
     
-    
-    if total_episode_reward < reward_min
+    % check if q table is good enough for use
+    if total_episode_reward < reward_min(y_goal*10)
         disp(['q_table_'  num2str(y_goal*100)  'cm' ' not good enough!']);
         disp('redo!');
         fprintf(1, '\n');
@@ -343,8 +348,10 @@ while y_goal < max_height
         fprintf(1, '\n');
     end
     
- 	save(['q_tables\q_table_'  num2str(y_goal*100)  'cm'], 'q_table');
+    % save q table
+ 	% save(['q_tables\q_table_'  num2str(y_goal*100)  'cm'], 'q_table');
     
+    % increment goal height
     y_goal = y_goal + 0.1;
     
 end

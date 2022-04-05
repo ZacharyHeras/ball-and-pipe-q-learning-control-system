@@ -1,3 +1,4 @@
+% A MATLAB script to the the PWM of the ball and pipe system fan 
 function action = set_pwm(device, pwm_value)
 %% Sets the PWM of the fan
 % Inputs:

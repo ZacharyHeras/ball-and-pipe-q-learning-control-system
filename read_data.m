@@ -1,3 +1,4 @@
+% A MATLAB script to read data from a ball and pipe system 
 function [distance,pwm,target,deadpan] = read_data(device)
 %% Reads data sent back from Ball and Pipe system
 % Inputs:

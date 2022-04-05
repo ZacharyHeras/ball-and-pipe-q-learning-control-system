@@ -1,3 +1,4 @@
+% A MATLAB script to convert IR readings to meters from bottom of pipe
 function [y, pipe_percentage] = ir2y(ir)
 %% Converts IR reading from the top to the distance in meters from the bottom
 % Inputs:

@@ -13,39 +13,38 @@ close all; clc; clear device; clear;
 device = serialport('COM10', 19200);
 
 %% Parameters
-y_goal      = 0.5;   % Desired height of the ball [m]
-sample_rate = 0.15;  % Amount of time between controll actions [s]
+% q table for desired height
+y_goal_q_table = load('q_table_0cm.mat', 'q_table');
 
-%% Bring ball to bottom
+% amount of time between controller actions
+sample_rate = 0.15;
+
+%% Bring ball to bottom for start
 action = 0;
 set_pwm(action);
 
-%% Feedback loop
+%% Ball and pipe control loop
 while true
-    
-    %% Read current height
-    [distance, pwm, target, deadpan] = read_data(device);
     % set previous y
     previous_y = y;
-    [y, ~] = ir2y(distance); % Convert from IR reading to distance from bottom [m]
-    disp(['y: ', num2str(y)])
+    
+    % read current height
+    [distance, pwm, target, deadpan] = read_data(device);
+    
+    % convert from IR reading to distance from bottom
+    [y, ~] = ir2y(distance);
 
-    
-    if time == 5
-        action = 4095;
-        set_pwm(device, action)
-    end
-    
-    %% Calculate current velocity
+    % calculate current velocity
     velocity = calculate_velocity(previous_y, y, sample_rate);
     
-    %% Calculate error
-    y_difference = ;
+    % calculate discrete state
+    discrete_state = ...
+        get_discrete_state([y, velocity], [0, -1.5], [0.435, 0.1429]);
     
-    %% Control
-    prev_action = action;
-
+    % use q table to determine action
+    [~, action] = ...
+                    max(q_table(discrete_state(1), discrete_state(2), :));
         
-    % Wait for next sample
+    % wait for next sample
     pause(sample_rate)
 end

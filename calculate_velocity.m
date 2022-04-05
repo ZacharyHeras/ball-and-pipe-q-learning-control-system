@@ -1,3 +1,4 @@
+% A MATLAB script used to caluclate velocity
 function velocity = calculate_velocity(last_y, current_y, sampling_time)
 %% Calculates the velocity of the ball
 % Inputs:
