@@ -14,7 +14,7 @@ device = serialport('COM10', 19200);
 
 %% Parameters
 % q table for desired height
-y_goal_q_table = load('q_table_0cm.mat', 'q_table');
+y_goal_q_table = load('q_tables\q_table_0cm.mat', 'q_table');
 
 % amount of time between controller actions
 sample_rate = 0.15;
