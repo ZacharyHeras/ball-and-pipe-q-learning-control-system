@@ -41,14 +41,13 @@ max_pwm = 4095 - 2727.0477;
 min_pwm = 0 - 2727.0477;
 
 %% hyperparameters
-
 % time that simulation will run for in seconds
 episode_length = 18;
 
 % number of simulation steps
 steps = episode_length / sampling_rate;
 
-% bucket length
+% bucket size
 bucket_size = 20;
 
 % min height of pipe
@@ -119,16 +118,16 @@ G = ss(G3);
 % hold figure so each episode can be plotted together
 % hold on
 
-% initialize height goal to 0.1m
-y_goal = 0.1;
+% initialize height goal
+y_goal = 0.9;
 
 % low reward value
 low_reward = -1;
 
 % initialze reward min
-reward_min = [5000 5000 5000 2200 2200 2200 2200 2200 2000];
+reward_min = [4000 4000 4000 4000 4000 4000 4000 4000 4000];
 
-while y_goal < max_height
+% while y_goal < max_height
     
     % initialize epsilon
     epsilon = 0.9;
@@ -223,22 +222,30 @@ while y_goal < max_height
 
             % update previous y value
             y_previous = y_current(end);
-
+            
+            % calculate difference
             y_difference = y_current(end) - y_goal;
 
             % calculate reward
-            height_reward_weight = 40;
-            height_reward = height_reward_weight * abs(y_difference);
-
-            velocity_reward_weight = 1;
-            velocity_reward = velocity_reward_weight * abs(velocity_current);
-
-            if (y_difference < 0.05 & y_difference > 0) & (velocity_current > -0.26 & velocity_current < 0) %#ok<AND2>
-                reward = 50;
-            elseif (y_difference < 0.05 & y_difference > 0) & (velocity_current < 0.26 & velocity_current > 0) %#ok<AND2>
+%             height_reward_weight = 40;
+%             height_reward = height_reward_weight * abs(y_difference);
+% 
+%             velocity_reward_weight = 1;
+%             velocity_reward = velocity_reward_weight * abs(velocity_current);
+% 
+%             if (y_difference < 0.05 & y_difference > 0) & (velocity_current > -0.26 & velocity_current < 0) %#ok<AND2>
+%                 reward = 50;
+%             elseif (y_difference < 0.05 & y_difference > 0) & (velocity_current < 0.26 & velocity_current > 0) %#ok<AND2>
+%                 reward = 50;
+%             else
+%                 reward = -height_reward;
+%             end
+            
+            % reward max velocity
+            if(y_current > 0.25 & y_current < 0.65 & abs(velocity_current) > 0.5) %#ok<AND2>
                 reward = 50;
             else
-                reward = -height_reward;
+                reward = -10;
             end
 
             % episode's total reward
@@ -314,16 +321,16 @@ while y_goal < max_height
         end
         
         % end agent of total reward is very high
-        if total_episode_reward > 5000
-            disp(['total episode reward: '...
-                , num2str(total_episode_reward)]);
-            fprintf(1, '\n');
-            pause(5);
-            break;
-        end
+        % if total_episode_reward > 5000
+        %    disp(['total episode reward: '...
+        %        , num2str(total_episode_reward)]);
+        %    fprintf(1, '\n');
+        %    pause(5);
+        %    break;
+        % end
         
         % end agent if it gets stuck in loop
-        if identical_q > 10
+        if identical_q > 300
             disp(['total episode reward: '...
                 , num2str(total_episode_reward)]);
             fprintf(1, '\n');
@@ -336,22 +343,26 @@ while y_goal < max_height
         
     end
     
+    y_goal_cm = y_goal*100;
+    y_goal_index = cast(y_goal_cm/10, 'int8');
+    
     % check if q table is good enough for use
-    if total_episode_reward < reward_min(y_goal*10)
-        disp(['q_table_'  num2str(y_goal*100)  'cm' ' not good enough!']);
+    if total_episode_reward < reward_min(y_goal_index)
+        disp(['q_table_'  num2str(y_goal_cm)  'cm' ' not good enough!']);
         disp('redo!');
         fprintf(1, '\n');
         y_goal = y_goal - 0.1;
     else
-        disp(['q_table_'  num2str(y_goal*100)  'cm ' 'saved!']);
+        disp(['q_table_'  num2str(y_goal_cm)  'cm ' 'saved!']);
         disp('moving to next target height!');
         fprintf(1, '\n');
     end
     
     % save q table
- 	% save(['q_tables\q_table_'  num2str(y_goal*100)  'cm'], 'q_table');
+%  	save(['q_tables\q_table_'  num2str(y_goal_cm)  'cm'], 'q_table');
+    save(['q_tables\q_table_'  'max_velocity'], 'q_table');
     
     % increment goal height
     y_goal = y_goal + 0.1;
     
-end
+% end
