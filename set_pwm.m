@@ -23,7 +23,7 @@ function action = set_pwm(device, pwm_value)
 % action = % string value of pwm_value
 % use the serialport() command options to change the PWM value to action
     action = sprintf('p%04.f', pwm_value);
-    disp(action);
+%     disp(action);
     write(device, action, 'string');
 
 end

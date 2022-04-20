@@ -1,5 +1,5 @@
 % A MATLAB script to convert IR readings to meters from bottom of pipe
-function [y, pipe_percentage] = ir2y(ir)
+function y = ir2y(ir)
 %% Converts IR reading from the top to the distance in meters from the bottom
 % Inputs:
 %  ~ ir: the IR reading from time of flight sensor
@@ -18,8 +18,9 @@ y_top     = 0.9144; % Ball at top of the pipe [m]
 
 %% Bound the IR reading and send error message 
 % (remeber the IR values are inverted ie small values == large height and large values == small height)
-ir        = min(max(ir, ir_top), ir_bottom);
+ir = min(max(ir, ir_top), ir_bottom);
+
 %% Set
 pipe_percentage = 1-((ir-ir_top)/(ir_bottom-ir_top));
-y               = y_top*pipe_percentage;
+y = y_top*pipe_percentage;
 

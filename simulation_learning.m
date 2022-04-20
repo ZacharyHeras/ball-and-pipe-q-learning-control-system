@@ -1,7 +1,7 @@
 % A MATLAB script to train a q table for use as a controller
 % Created by Zachary Heras 2/23/2022
 
-%% Clear workspace nad command window
+%% Clear workspace and command window
 clear, clc;
 
 %% Given variables in SI units
@@ -23,16 +23,16 @@ g = 9.8;
 velocity_eq = 2.4384;
 
 % sampling_rate of controller
-sampling_rate = 0.15;
+sampling_rate = 0.3;
 
 % max height of pipe
 max_height = 0.9144;
 
 % max velocity of ball and pipe system
-max_vel = 1.5;
+max_vel = 1;
 
 % min velocity of ball and pipe system
-min_vel = -1.5;
+min_vel = -1;
 
 % max pwm of ball and pipe system
 max_pwm = 4095 - 2727.0477;
@@ -45,26 +45,32 @@ min_pwm = 0 - 2727.0477;
 episode_length = 18;
 
 % number of simulation steps
-steps = episode_length / sampling_rate;
+steps = cast(cast((episode_length / sampling_rate), 'int16'), 'double');
 
-% bucket size
-bucket_size = 20;
+% bucket size for height
+bucket_size_height = 18;
+
+% bucket size for velocity
+bucket_size_velocity = 10;
+
+% bucket size for pwm
+bucket_size_pwm = 5;
 
 % min height of pipe
 min_height = 0;
 
 % height space / range
 height_space = min_height:...
-    ((max_height - min_height) / bucket_size):max_height;
+    ((max_height - min_height) / bucket_size_height):max_height;
  
 % velocity space / range
-velocity_space = min_vel:((max_vel - min_vel) / bucket_size):max_vel;
+velocity_space = min_vel:((max_vel - min_vel) / bucket_size_velocity):max_vel;
 
 % pwm space / range
-pwm_space = min_pwm:((max_pwm - min_pwm) / bucket_size):max_pwm;
+pwm_space = min_pwm:((max_pwm - min_pwm) / bucket_size_pwm):max_pwm;
 
 % observation_space
-os_space = vertcat(height_space, velocity_space);
+os_space = zeros(length(height_space), length(velocity_space));
 
 % observation space high
 os_high = horzcat(max_height, max_vel);
@@ -77,11 +83,10 @@ os_win_size = (os_high - os_low) ./...
  horzcat(length(height_space), length(velocity_space));
 
 % number of observation space variables
-num_os_variables = size(os_space);
-num_os_variables = num_os_variables(1);
+num_os_variables = length(size(os_space));
 
 % number of episodes
-episodes = 7000;
+episodes = 4000;
 
 % learning rate
 learning_rate = 0.01;
@@ -90,7 +95,7 @@ learning_rate = 0.01;
 discount_factor = 0.90;
 
 % epsilon decay function
-epsilon = 0.9;
+epsilon = 0.5;
 start_epsilon_decaying = 1;
 end_epsilon_decaying = cast((episodes / 2), 'int16');
 epsilon_decay_value = 0.04 * epsilon / ...
@@ -119,7 +124,7 @@ G = ss(G3);
 % hold on
 
 % initialize height goal
-y_goal = 0.9;
+y_goal = 0.4572;
 
 % low reward value
 low_reward = -1;
@@ -130,7 +135,7 @@ reward_min = [4000 4000 4000 4000 4000 4000 4000 4000 4000];
 % while y_goal < max_height
     
     % initialize epsilon
-    epsilon = 0.9;
+%     epsilon = 0.9;
     
     % randomly initialize q table
     q_table = low_reward * zeros(length(height_space), ...
@@ -169,7 +174,7 @@ reward_min = [4000 4000 4000 4000 4000 4000 4000 4000 4000];
 
             % determine if agent will explore
             if explore < epsilon
-                action = randi([8,length(pwm_space)]);
+                action = randi([1,length(pwm_space)]);
                 current_q = ...
                     q_table(discrete_state(1), discrete_state(2), action);
                 color = '-r';
@@ -184,7 +189,7 @@ reward_min = [4000 4000 4000 4000 4000 4000 4000 4000 4000];
             [y_current, previous_time_samples, previous_states] = ...
                 lsim(G, [pwm_space(action), pwm_space(action)],...
                 [0, sampling_rate], previous_state);
-
+tic
             % enforce max height
             if y_current(end - 1) > max_height
                 y_current(end - 1) = max_height;
@@ -219,7 +224,7 @@ reward_min = [4000 4000 4000 4000 4000 4000 4000 4000 4000];
             % calculate new discrete step
             new_discrete_state = get_discrete_state([y_current(end),...
                 velocity_current], os_low, os_win_size);
-
+            
             % update previous y value
             y_previous = y_current(end);
             
@@ -227,26 +232,26 @@ reward_min = [4000 4000 4000 4000 4000 4000 4000 4000 4000];
             y_difference = y_current(end) - y_goal;
 
             % calculate reward
-%             height_reward_weight = 40;
-%             height_reward = height_reward_weight * abs(y_difference);
-% 
-%             velocity_reward_weight = 1;
-%             velocity_reward = velocity_reward_weight * abs(velocity_current);
-% 
-%             if (y_difference < 0.05 & y_difference > 0) & (velocity_current > -0.26 & velocity_current < 0) %#ok<AND2>
-%                 reward = 50;
-%             elseif (y_difference < 0.05 & y_difference > 0) & (velocity_current < 0.26 & velocity_current > 0) %#ok<AND2>
-%                 reward = 50;
-%             else
-%                 reward = -height_reward;
-%             end
-            
-            % reward max velocity
-            if(y_current > 0.25 & y_current < 0.65 & abs(velocity_current) > 0.5) %#ok<AND2>
+            height_reward_weight = 40;
+            height_reward = height_reward_weight * abs(y_difference);
+
+            velocity_reward_weight = 1;
+            velocity_reward = velocity_reward_weight * abs(velocity_current);
+
+            if (y_difference < 0.05 & y_difference > 0) & (velocity_current > -0.26 & velocity_current < 0) %#ok<AND2>
+                reward = 50;
+            elseif (y_difference < 0.05 & y_difference > 0) & (velocity_current < 0.26 & velocity_current > 0) %#ok<AND2>
                 reward = 50;
             else
-                reward = -10;
+                reward = -height_reward;
             end
+            
+            % reward max velocity
+%             if(y_current > 0.25 & y_current < 0.65 & abs(velocity_current) > 0.5) %#ok<AND2>
+%                 reward = 50;
+%             else
+%                 reward = -10;
+%             end
 
             % episode's total reward
             total_episode_reward = total_episode_reward + reward;
@@ -289,7 +294,7 @@ reward_min = [4000 4000 4000 4000 4000 4000 4000 4000 4000];
                     && episode >= start_epsilon_decaying
                 epsilon =  epsilon - epsilon_decay_value;
             end
-
+toc
         end
 
         % logging metrics
@@ -308,6 +313,7 @@ reward_min = [4000 4000 4000 4000 4000 4000 4000 4000 4000];
         end
 
         % visualise agent learning
+        figure(2)
         plot(0:sampling_rate:episode_length, y_values, color);
         ylim([0 1])
         xlabel('Time(s)')
@@ -359,8 +365,8 @@ reward_min = [4000 4000 4000 4000 4000 4000 4000 4000 4000];
     end
     
     % save q table
-%  	save(['q_tables\q_table_'  num2str(y_goal_cm)  'cm'], 'q_table');
-    save(['q_tables\q_table_'  'max_velocity'], 'q_table');
+ 	save(['q_tables\q_table_'  num2str(y_goal_cm)  'cm'], 'q_table');
+%     save(['q_tables\q_table_'  'max_velocity'], 'q_table');
     
     % increment goal height
     y_goal = y_goal + 0.1;
