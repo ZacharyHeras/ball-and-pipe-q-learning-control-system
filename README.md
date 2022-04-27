@@ -30,3 +30,4 @@ So, the how Q-Learning basically works is an agent in a state takes an action an
 decides a next action by either referencing the Q-table or at random, and then updates the Q-values accordingly.
 
 ## Code Use Guide
+In order to use the code, you must download the entire repo, and run the real_world.m script. For this script to work, make sure to set your device COM port directly by finding the com port for the B&P system in your device manager.
