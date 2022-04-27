@@ -14,6 +14,8 @@ Some problems that we experienced throughout this project was getting MATLAB to 
 the serial port correctly, and to correctly transmit the values of each state to the ball 
 height. Throughout setting up the ball and pipe system, the ball height would keep, 
 inexplicably, going to the max height of the system and stay there in spite of other inputs.
+Through trial and error with different variables, and setting the pulse width modulated signal
+to different values, this was eventually able to be resolved and we were able to start training.
 
 ## Summary of Q-Learning
 Q-Learning is a model-free type of reinforcement learning that uses Q-values to iteratively improve the learning model, 
