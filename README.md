@@ -16,6 +16,15 @@ height. Throughout setting up the ball and pipe system, the ball height would ke
 inexplicably, going to the max height of the system and stay there in spite of other inputs.
 
 ## Summary of Q-Learning
-
+Q-Learning is a model-free type of reinforcement learning that uses Q-values to iteratively improve the learning model, 
+where the Q-value is basically an estimate of how good a certain action is at a given state. In order to use Q-Learning, first
+something called a Q-table is made. This table is a matrix of all states and current actions on the model and starts out at
+all zeroes. After each episode, or basically when the agent reaches a terminating state where no more transitions of state are possible,
+the Q-value for that run is stored in that matrix. This then becomes the table our agent references in order to 
+pick the best action based on its Q-value. Over time, this agent will converge on the optimal Q-values that lead to the highest reward.
+To interact with the environment, the agent can either explore of exploit. When the agent explores, actions are taken at random and their 
+values recorded. When the agent exploits, actions are taken based on the highest reward using the Q-table as reference.
+So, the how Q-Learning basically works is an agent in a state takes an action and receives a reward, 
+decides a next action by either referencing the Q-table or at random, and then updates the Q-values accordingly.
 
 ## Code Use Guide
