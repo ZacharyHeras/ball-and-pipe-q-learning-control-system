@@ -1,35 +1,29 @@
-# Ball and Pipe Control System 
-
+# Ball and Pipe Q-Learning Control System
 ## Overview of Project
-This project uses MATLAB code to open serial communication with a ball and pipe system.
-The system is made of a vertical cylinder with a ping pong ball controlled 
-by a fan on the bottom and height measured by a time of flight sensor on top. 
-The objective is to balance the ball at a target altitude. To achieve this, we used 
-Q-learning to have the system reach a target altitude through reinforcement training. 
-Using Q-learning and reinforcement learning for this type of project allows for a model-free,
-discrete action system reach a set value wihtout needing any other adaptations outside of 
-setting that value. Given enough trials, it efficiently optimizes for the best actions needed 
-to reach the target. 
-Some problems that we experienced throughout this project was getting MATLAB to work with 
-the serial port correctly, and to correctly transmit the values of each state to the ball 
-height. Throughout setting up the ball and pipe system, the ball height would keep, 
-inexplicably, going to the max height of the system and stay there in spite of other inputs.
-Through trial and error with different variables, and setting the pulse width modulated signal
-to different values, this was eventually able to be resolved and we were able to start training.
+This project implements a Q-learning control system for a ball and pipe system that hovers a ball in the air. The control system is implemented in MATLAB and takes advantage of MATLAB's ability to easily create and modify matrices. The ball and pipe system is made of a hollow transparent vertical cylinder with a ping pong ball that sits inside of it. At the bottom of the pipe there is a fan whose RPM / PWM can be controlled by MATLAB via serial communication over USB. The height of the ball is tracked using an IR sensor at the top of the pipe. The goal of the project was to get the ball to float halfway up the tube (43cm high) using a control system. The control system chosen for this project was Q-learning. This control system was chosen because our group wanted to learn about a basic reinforcement learning algorithm. A Q-learning algorithm was implemented to keep the ball hovering at 43cm in the pipe and in the end the algorithm did a decent job of finding a policy to achieve this goal. This is shown in the GIF below.
+
+![](https://pandao.github.io/editor.md/images/logos/editormd-logo-180x180.png)
 
 ## Summary of Q-Learning
-Q-Learning is a model-free type of reinforcement learning that uses Q-values to iteratively improve the learning model, 
-where the Q-value is basically an estimate of how good a certain action is at a given state. In order to use Q-Learning, first
-something called a Q-table is made. This table is a matrix of all states and current actions on the model and starts out at
-all zeroes. After each episode, or basically when the agent reaches a terminating state where no more transitions of state are possible,
-the Q-value for that run is stored in that matrix. This then becomes the table our agent references in order to 
-pick the best action based on its Q-value. Over time, this agent will converge on the optimal Q-values that lead to the highest reward.
-To interact with the environment, the agent can either explore of exploit. When the agent explores, actions are taken at random and their 
-values recorded. When the agent exploits, actions are taken based on the highest reward using the Q-table as reference.
-So, the how Q-Learning basically works is an agent in a state takes an action and receives a reward, 
-decides a next action by either referencing the Q-table or at random, and then updates the Q-values accordingly.
+Q-learning is a model-free type of reinforcement learning that houses Q-values to iteratively improve the action selection policy for any given Markov decision process. The Q in Q-learning stands for the “quality” of the action selection policy/function that the algorithms computes. We want the Q-function that maximizes the reward in the given environment, with a given goal in mind. The Q-function in this case is a lookup table called a Q-table with a given Q-value for each action given the height and velocity. The Q-learning algorithm will iteratively learn this optimal Q-function by using the Bellman Optimality Equation. This equation is seen below.
+
+![](https://pandao.github.io/editor.md/images/logos/editormd-logo-180x180.png)
+
+This equation updates the Q-table reward value (Q-value) for a given state and action. The hyperparameters of this equation are α which is the learning rate, (controls how fast the algorithm will converge), and ɣ which is the discount factor (controls how much the algorithm cares about the future reward). Over time the algorithm will converge and will find the actions that maximize the reward for the environment.
+ 
+For this project, the function that the algorithm is optimizing is the action (fan RPM/PWM) that the ball and pipe system controller should take in order to hover the ball in the middle (43cm high) of the pipe given the height and velocity of the ball. In this project, the action space is the varying PWM speeds of the fan, and the observation space is the varying heights and velocities of the ball. The action space is divided into three bins, and the observation space is divided into ten bins. These are hyperparameters that can be changed in the code, but we found that these values worked best for us. The reward function is shown in the code. Basically, it rewards the Q-learning agent if the ball is close to the target. Once the algorithm is set up for the environment, it runs until it reaches an optimal Q-table. This Q-table can then be used as a control system that tells the fan what action to take in order to hover the ball halfway up the tube.
 
 ## Code Use Guide
-In order to use the code, you must download the entire repo, and run the real_world.m script. For this script to work, make sure to set your device COM port directly by finding the com port for the B&P system in your device manager. When you change the com port, keep the baud rate to 19200, as that is the baud rate for the device.
-
-Currently, a q-table exists to get the ball to reach a pipe height of 43cm, and hover there. In order to reach other heights, the data can be trained with different parameters for the height.
+To use the code, make a clone of the repo and run the real_world.m MATLAB script when the ball and pipe system USB electrical connection is plugged into the computer running the script. For this script to work, make sure to set your device COM port to the correctly. Currently, there is a Q-table that was able to be used as a control system to hover the ball in the middle as shown in the overview of project section. However, this table does not work consistently because the ball and pipe system is not very secure and the angle at which it is facing up changes. 
+Below are brief descriptions of what each file and directory does/is in this repository:
+- real_world_figures: Contains real world training reward values over time.
+- real_world_q_tables: Contains q tables that were trained on the actual ball and pipe environment.
+- calculate_velocity.m: Calculates the velocity of the ball given a current and previous height.
+- get_discrete_state.m: Calculates the discrete state for a given continuous state.
+- ir2y.m: Converts an IR sensor reading into an actual height in meters.
+- partial_success_episode_513.fig: Figure showing the reward graph for 513 episodes.
+- read_data.m: MATLAB script that reads height data from the ball and pipe system.
+- set_pwm.m: MATLAB script that sets the fan PWM for the ball and pipe system.
+- real_world.m: Runs a given Q-table on the ball and pipe system and continues to optimize it.
+- simulation_learning: Shows the Q-learning algorithm working in real time on a simulation of the ball and pipe system. This is a standalone file.
+- SCFBA Specfication Sheet.pdf: Datasheet for the ball and pipe system.
