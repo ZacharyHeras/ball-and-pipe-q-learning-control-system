@@ -4,7 +4,7 @@ This project uses a Q-learning based control system to hover a ping pong ball in
 
 ![](https://github.com/Ryan-Oliver-2k/ball_and_pipe_control/blob/main/ball_and_pipe_system_q_learning_episode_600.gif)
 
-## Summary of Q-Learning
+## Summary of Q-learning
 Q-learning is a model-free type of reinforcement learning that records Q-values to iteratively improve the action selection policy for any given Markov decision process. The Q in Q-learning stands for the “quality” of the action selection policy/function that the algorithms computes. We want the Q-function that maximizes the reward in the given environment, with a given goal in mind. The Q-function in this case is a lookup table called a Q-table with a given Q-value for each action given the height and velocity. The Q-learning algorithm will iteratively learn this optimal Q-function by using the Bellman Optimality Equation. This equation is seen below.
 
 ![](https://github.com/Ryan-Oliver-2k/ball_and_pipe_control/blob/main/bellman_optimality_equation.png)
