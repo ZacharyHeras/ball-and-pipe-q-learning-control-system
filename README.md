@@ -1,4 +1,4 @@
-# Ball and Pipe Q-Learning Control System
+# Ball and Pipe Q-learning Control System
 ## Overview of Project
 This project implements a Q-learning control system for a ball and pipe system that hovers a ball in the air. The control system is implemented in MATLAB and takes advantage of MATLAB's ability to easily create and modify matrices. The ball and pipe system is made of a hollow transparent vertical cylinder with a ping pong ball that sits inside of it. At the bottom of the pipe there is a fan whose RPM / PWM can be controlled by MATLAB via serial communication over USB. The height of the ball is tracked using an IR sensor at the top of the pipe. The goal of the project was to get the ball to float halfway up the tube (43cm high) using a control system. The control system chosen for this project was Q-learning. This control system was chosen because our group wanted to learn about a basic reinforcement learning algorithm. A Q-learning algorithm was implemented to keep the ball hovering at 43cm in the pipe and in the end the algorithm did a decent job of finding a policy to achieve this goal. This is shown in the GIF below.
 
