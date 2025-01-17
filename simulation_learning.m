@@ -124,7 +124,7 @@ G = ss(G3);
 % hold on
 
 % initialize height goal
-y_goal = 0.7;
+y_goal = 0.5;
 
 % low reward value
 low_reward = -1;
